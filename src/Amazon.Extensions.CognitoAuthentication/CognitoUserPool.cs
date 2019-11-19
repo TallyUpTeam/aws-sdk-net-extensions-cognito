@@ -25,7 +25,7 @@ using System.Threading;
 
 namespace Amazon.Extensions.CognitoAuthentication
 {
-    public partial class CognitoUserPool
+    public class CognitoUserPool: AsyncServiceInvoker
     {
         /// <summary>
         /// The poolID associated with the user pool. PoolID can only be configured 
@@ -62,16 +62,16 @@ namespace Amazon.Extensions.CognitoAuthentication
         {
             if(!poolID.Contains("_"))
             {
-                throw new ArgumentException("PoolID should be of the form <region>_<poolname>.", "poolID");
+                throw new ArgumentException("PoolID should be of the form <region>_<poolname>.", nameof(poolID));
             }
 
-            this.PoolID = poolID;
-            this.ClientID = clientID;
-            this.ClientSecret = clientSecret;
+            PoolID = poolID;
+            ClientID = clientID;
+            ClientSecret = clientSecret;
 
-            this.Provider = provider;
+            Provider = provider;
 
-            if (this.Provider is AmazonCognitoIdentityProviderClient eventProvider)
+            if (Provider is AmazonCognitoIdentityProviderClient eventProvider)
             {
                 eventProvider.BeforeRequestEvent += CognitoAuthHelper.ServiceClientBeforeRequestEvent;
             }
@@ -92,7 +92,7 @@ namespace Amazon.Extensions.CognitoAuthentication
         {
             SignUpRequest signUpUserRequest = CreateSignUpRequest(userID, password, userAttributes, validationData);
 
-            return Provider.SignUpAsync(signUpUserRequest);
+            return InvokeServiceAsync<SignUpRequest, SignUpResponse>(Provider.SignUpAsync, signUpUserRequest);
         }
 
         /// <summary>
@@ -115,7 +115,7 @@ namespace Amazon.Extensions.CognitoAuthentication
             }
             else
             {
-                throw new ArgumentNullException("userAttributes", "userAttributes cannot be null.");
+                throw new ArgumentNullException(nameof(userAttributes), "userAttributes cannot be null.");
             }
 
             List<AttributeType> validationDataList = 
@@ -192,10 +192,10 @@ namespace Amazon.Extensions.CognitoAuthentication
 
             try
             {
-                var response = await Provider.AdminGetUserAsync(new AdminGetUserRequest
+                var response = await InvokeServiceAsync<AdminGetUserRequest, AdminGetUserResponse>(Provider.AdminGetUserAsync, new AdminGetUserRequest
                 {
                     Username = userID,
-                    UserPoolId = this.PoolID
+                    UserPoolId = PoolID
                 }).ConfigureAwait(false);
 
                 return new CognitoUser(response.Username, ClientID, this, Provider, ClientSecret,
@@ -215,9 +215,9 @@ namespace Amazon.Extensions.CognitoAuthentication
         /// <returns>The <see cref="Task"/> that represents the asynchronous operation, containing the PasswordPolicyType of the pool.</returns>
         public async Task<PasswordPolicyType> GetPasswordPolicyTypeAsync()
         {
-            var response = await Provider.DescribeUserPoolAsync(new DescribeUserPoolRequest
+            var response = await InvokeServiceAsync<DescribeUserPoolRequest, DescribeUserPoolResponse>(Provider.DescribeUserPoolAsync, new DescribeUserPoolRequest
             {
-                UserPoolId = this.PoolID
+                UserPoolId = PoolID
             }).ConfigureAwait(false);
 
             return response.UserPool.Policies.PasswordPolicy;
@@ -232,10 +232,10 @@ namespace Amazon.Extensions.CognitoAuthentication
         {
             if (ClientConfiguration == null)
             {
-                var response = await Provider.DescribeUserPoolClientAsync(new DescribeUserPoolClientRequest
+                var response = await InvokeServiceAsync<DescribeUserPoolClientRequest, DescribeUserPoolClientResponse>(Provider.DescribeUserPoolClientAsync, new DescribeUserPoolClientRequest
                 {
-                    ClientId = this.ClientID,
-                    UserPoolId = this.PoolID
+                    ClientId = ClientID,
+                    UserPoolId = PoolID
                 }).ConfigureAwait(false);
 
                 ClientConfiguration = new CognitoUserPoolClientConfiguration(response.UserPoolClient.ReadAttributes, response.UserPoolClient.WriteAttributes);
@@ -257,7 +257,7 @@ namespace Amazon.Extensions.CognitoAuthentication
         {
             AdminCreateUserRequest signUpUserRequest = CreateAdminSignUpRequest(userID, userAttributes, validationData);
 
-            return Provider.AdminCreateUserAsync(signUpUserRequest);
+            return InvokeServiceAsync<AdminCreateUserRequest, AdminCreateUserResponse>(Provider.AdminCreateUserAsync, signUpUserRequest);
         }
 
         /// <summary>
@@ -288,17 +288,17 @@ namespace Amazon.Extensions.CognitoAuthentication
             return new AdminCreateUserRequest()
             {
                 Username = userID,
-                UserPoolId = this.PoolID,
+                UserPoolId = PoolID,
                 UserAttributes = userAttributesList,
                 ValidationData = validationDataList
             };
         }
 
         /// <summary>
-        /// Resets the <paramref name="user"/>'s password to the specified <paramref name="newPassword"/> after
+        /// Resets the <paramref name="userID"/>'s password to the specified <paramref name="newPassword"/> after
         /// validating the given password reset <paramref name="token"/>.
         /// </summary>
-        /// <param name="user">The user whose password should be reset.</param>
+        /// <param name="userID">The user whose password should be reset.</param>
         /// <param name="token">The password reset token to verify.</param>
         /// <param name="newPassword">The new password to set if reset token verification succeeds.</param>
         /// <returns>
@@ -323,7 +323,8 @@ namespace Amazon.Extensions.CognitoAuthentication
                 request.SecretHash = CognitoAuthHelper.GetUserPoolSecretHash(userID, ClientID, ClientSecret);
             }
 
-            return Provider.ConfirmForgotPasswordAsync(request, cancellationToken);
+            // TODO: How to cancel the underlying service call? Right now we're just ignoring the cancellationToken
+            return InvokeServiceAsync<ConfirmForgotPasswordRequest, ConfirmForgotPasswordResponse>(Provider.ConfirmForgotPasswordAsync, request);//, cancellationToken);
         }
     }
 }

@@ -22,7 +22,7 @@ using Amazon.Extensions.CognitoAuthentication.Util;
 
 namespace Amazon.Extensions.CognitoAuthentication
 {
-    public partial class CognitoUser
+    public partial class CognitoUser: AsyncServiceInvoker
     { 
         /// <summary>
         /// The client secret for the associated client, if one is set
@@ -112,46 +112,45 @@ namespace Amazon.Extensions.CognitoAuthentication
                            string username = null,
                            Dictionary<string, string> attributes = null)
         {
-            if(pool.PoolID.Contains("_"))
-            {
-                this.PoolName = pool.PoolID.Split('_')[1];
+            if (pool.PoolID.Contains("_")) {
+                PoolName = pool.PoolID.Split('_')[1];
             }
             else
             {
                 throw new ArgumentException("Pool's poolID malformed, should be of the form <region>_<poolname>.");
             }
 
-            this.ClientSecret = clientSecret;
+            ClientSecret = clientSecret;
             if (!string.IsNullOrEmpty(clientSecret))
             {
-                this.SecretHash = CognitoAuthHelper.GetUserPoolSecretHash(userID, clientID, clientSecret);
+                SecretHash = CognitoAuthHelper.GetUserPoolSecretHash(userID, clientID, clientSecret);
             }
 
-            this.UserID = userID;
-            this.Username = userID;
+            UserID = userID;
+            Username = userID;
             if (!string.IsNullOrEmpty(username))
             {
-                this.Username = username;
+                Username = username;
             }
             else
             {
-                this.Username = userID;
+                Username = userID;
             }
 
-            this.Status = status;
+            Status = status;
 
-            this.UserPool = pool;
-            this.ClientID = clientID;
-            this.SessionTokens = null;
+            UserPool = pool;
+            ClientID = clientID;
+            SessionTokens = null;
 
             if (attributes != null)
             {
-                this.Attributes = attributes;
+                Attributes = attributes;
             }
 
-            this.Provider = provider;
+            Provider = provider;
 
-            if (this.Provider is AmazonCognitoIdentityProviderClient eventProvider)
+            if (Provider is AmazonCognitoIdentityProviderClient eventProvider)
             {
                 eventProvider.BeforeRequestEvent += CognitoAuthHelper.ServiceClientBeforeRequestEvent;
             }
@@ -167,7 +166,7 @@ namespace Amazon.Extensions.CognitoAuthentication
         {
             ConfirmSignUpRequest confirmRequest = CreateConfirmSignUpRequest(confirmationCode, forcedAliasCreation);
 
-            return Provider.ConfirmSignUpAsync(confirmRequest);
+            return InvokeServiceAsync<ConfirmSignUpRequest, ConfirmSignUpResponse>(Provider.ConfirmSignUpAsync, confirmRequest);
         }
 
         /// <summary>
@@ -178,7 +177,7 @@ namespace Amazon.Extensions.CognitoAuthentication
         {
             ResendConfirmationCodeRequest resendRequest = CreateResendConfirmationCodeRequest();
 
-            return Provider.ResendConfirmationCodeAsync(resendRequest);
+            return InvokeServiceAsync<ResendConfirmationCodeRequest, ResendConfirmationCodeResponse>(Provider.ResendConfirmationCodeAsync, resendRequest);
         }
 
         /// <summary>
@@ -189,7 +188,7 @@ namespace Amazon.Extensions.CognitoAuthentication
         {
             ForgotPasswordRequest forgotPassRequest = CreateForgotPasswordRequest();
 
-            return Provider.ForgotPasswordAsync(forgotPassRequest);
+            return InvokeServiceAsync<ForgotPasswordRequest, ForgotPasswordResponse>(Provider.ForgotPasswordAsync, forgotPassRequest);
         }
 
         /// <summary>
@@ -203,7 +202,7 @@ namespace Amazon.Extensions.CognitoAuthentication
             ConfirmForgotPasswordRequest confirmResetPassRequest =
                 CreateConfirmPasswordRequest(confirmationCode, newPassword);
 
-            return Provider.ConfirmForgotPasswordAsync(confirmResetPassRequest);
+            return InvokeServiceAsync<ConfirmForgotPasswordRequest, ConfirmForgotPasswordResponse>(Provider.ConfirmForgotPasswordAsync, confirmResetPassRequest);
         }
 
         /// <summary>
@@ -216,7 +215,7 @@ namespace Amazon.Extensions.CognitoAuthentication
         {
             ChangePasswordRequest changePassRequest = CreateChangePasswordRequest(oldPass, newPass);
 
-            return Provider.ChangePasswordAsync(changePassRequest);
+            return InvokeServiceAsync<ChangePasswordRequest, ChangePasswordResponse>(Provider.ChangePasswordAsync, changePassRequest);
         }
 
         /// <summary>
@@ -232,7 +231,7 @@ namespace Amazon.Extensions.CognitoAuthentication
                 AccessToken = SessionTokens.AccessToken
             };
 
-            return Provider.GetUserAsync(getUserRequest);
+            return InvokeServiceAsync<GetUserRequest, GetUserResponse>(Provider.GetUserAsync, getUserRequest);
         }
 
         /// <summary>
@@ -247,7 +246,7 @@ namespace Amazon.Extensions.CognitoAuthentication
             GetUserAttributeVerificationCodeRequest getAttributeCodeRequest =
                     CreateGetUserAttributeVerificationCodeRequest(medium);
 
-            return Provider.GetUserAttributeVerificationCodeAsync(getAttributeCodeRequest);
+            return InvokeServiceAsync<GetUserAttributeVerificationCodeRequest, GetUserAttributeVerificationCodeResponse>(Provider.GetUserAttributeVerificationCodeAsync, getAttributeCodeRequest);
         }
 
         /// <summary>
@@ -263,7 +262,7 @@ namespace Amazon.Extensions.CognitoAuthentication
             };
 
             SessionTokens = null;
-            return Provider.GlobalSignOutAsync(globalSignOutRequest);
+            return InvokeServiceAsync<GlobalSignOutRequest, GlobalSignOutResponse>(Provider.GlobalSignOutAsync, globalSignOutRequest);
         }
 
         /// <summary>
@@ -278,7 +277,7 @@ namespace Amazon.Extensions.CognitoAuthentication
                 AccessToken = SessionTokens.AccessToken
             };
 
-            return Provider.DeleteUserAsync(deleteUserRequest);
+            return InvokeServiceAsync<DeleteUserRequest, DeleteUserResponse>(Provider.DeleteUserAsync, deleteUserRequest);
         }
 
         /// <summary>
@@ -291,7 +290,7 @@ namespace Amazon.Extensions.CognitoAuthentication
             VerifyUserAttributeRequest verifyUserAttributeRequest =
                 CreateVerifyUserAttributeRequest(attributeName, verificationCode);
 
-            return Provider.VerifyUserAttributeAsync(verifyUserAttributeRequest);
+            return InvokeServiceAsync<VerifyUserAttributeRequest, VerifyUserAttributeResponse>(Provider.VerifyUserAttributeAsync, verifyUserAttributeRequest);
         }
 
         /// <summary>
@@ -304,7 +303,7 @@ namespace Amazon.Extensions.CognitoAuthentication
             UpdateUserAttributesRequest updateUserAttributesRequest =
                 CreateUpdateUserAttributesRequest(attributes);
 
-            await Provider.UpdateUserAttributesAsync(updateUserAttributesRequest).ConfigureAwait(false);
+            await InvokeServiceAsync<UpdateUserAttributesRequest, UpdateUserAttributesResponse>(Provider.UpdateUserAttributesAsync, updateUserAttributesRequest).ConfigureAwait(false);
 
             //Update the local Attributes property
             foreach (KeyValuePair<string, string> entry in attributes)
@@ -323,7 +322,7 @@ namespace Amazon.Extensions.CognitoAuthentication
             DeleteUserAttributesRequest deleteUserAttributesRequest =
                 CreateDeleteUserAttributesRequest(attributeNamesToDelete);
 
-            await Provider.DeleteUserAttributesAsync(deleteUserAttributesRequest).ConfigureAwait(false);
+            await InvokeServiceAsync<DeleteUserAttributesRequest, DeleteUserAttributesResponse>(Provider.DeleteUserAttributesAsync, deleteUserAttributesRequest).ConfigureAwait(false);
 
             //Update the local Attributes property
             foreach (string attribute in attributeNamesToDelete)
@@ -344,7 +343,7 @@ namespace Amazon.Extensions.CognitoAuthentication
         {
             SetUserSettingsRequest setUserSettingsRequest = CreateSetUserSettingsRequest(userSettings);
 
-            await Provider.SetUserSettingsAsync(setUserSettingsRequest).ConfigureAwait(false);
+            await InvokeServiceAsync<SetUserSettingsRequest, SetUserSettingsResponse>(Provider.SetUserSettingsAsync, setUserSettingsRequest).ConfigureAwait(false);
 
             //Update the local Settings property
             foreach (KeyValuePair<string, string> entry in userSettings)
@@ -362,7 +361,7 @@ namespace Amazon.Extensions.CognitoAuthentication
         public async Task<List<CognitoDevice>> ListDevicesAsync(int limit, string paginationToken)
         {
             ListDevicesRequest listDevicesRequest = CreateListDevicesRequest(limit, paginationToken);
-            ListDevicesResponse listDevicesReponse = await Provider.ListDevicesAsync(listDevicesRequest).ConfigureAwait(false);
+            ListDevicesResponse listDevicesReponse = await InvokeServiceAsync<ListDevicesRequest, ListDevicesResponse>(Provider.ListDevicesAsync, listDevicesRequest).ConfigureAwait(false);
             List<CognitoDevice> devicesList = new List<CognitoDevice>();
 
             foreach (DeviceType device in listDevicesReponse.Devices)
@@ -499,7 +498,7 @@ namespace Amazon.Extensions.CognitoAuthentication
         /// </summary>
         public void SignOut()
         {
-            this.SessionTokens = null;
+            SessionTokens = null;
         }
 
         private VerifyUserAttributeRequest CreateVerifyUserAttributeRequest(string attributeName, string verificationCode)
@@ -533,7 +532,7 @@ namespace Amazon.Extensions.CognitoAuthentication
         {
             if (attributeNamesToDelete == null || attributeNamesToDelete.Count < 1)
             {
-                throw new ArgumentNullException("attributeNamesToDelete cannot be null or empty.", "attributeNamesToDelete");
+                throw new ArgumentNullException(nameof(attributeNamesToDelete), "attributeNamesToDelete cannot be null or empty.");
             }
 
             EnsureUserAuthenticated();
@@ -551,7 +550,7 @@ namespace Amazon.Extensions.CognitoAuthentication
         {
             if (userSettings == null || userSettings.Count < 1)
             {
-                throw new ArgumentNullException("userSettings cannot be null or empty.", "userSettings");
+                throw new ArgumentNullException(nameof(userSettings), "userSettings cannot be null or empty.");
             }
 
             EnsureUserAuthenticated();

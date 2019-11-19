@@ -23,7 +23,7 @@ using Amazon.Extensions.CognitoAuthentication.Util;
 
 namespace Amazon.Extensions.CognitoAuthentication
 {
-    public partial class CognitoDevice
+    public class CognitoDevice: AsyncServiceInvoker
     {
         /// <summary>
         /// The device key associated with the device. DeviceKey can only be configured 
@@ -87,23 +87,20 @@ namespace Amazon.Extensions.CognitoAuthentication
                              DateTime lastAuthenticated,
                              CognitoUser user)
         {
-            if (deviceKey == null)
-            {
-                throw new ArgumentNullException("deviceKey", "deviceKey cannot be null.");
+            if (deviceKey == null) {
+                throw new ArgumentNullException(nameof(deviceKey), "deviceKey cannot be null.");
             }
 
-            if(deviceAttributes == null)
-            {
-                throw new ArgumentNullException("deviceAttributes", "deviceAttributes cannot be null.");
-
+            if (deviceAttributes == null) {
+                throw new ArgumentNullException(nameof(deviceAttributes), "deviceAttributes cannot be null.");
             }
 
-            this.DeviceKey = deviceKey;
-            this.DeviceAttributes = new Dictionary<string,string>(deviceAttributes);
-            this.CreateDate = createDate;
-            this.LastModified = lastModified;
-            this.LastAuthenticated = lastAuthenticated;
-            this.User = user;
+            DeviceKey = deviceKey;
+            DeviceAttributes = new Dictionary<string,string>(deviceAttributes);
+            CreateDate = createDate;
+            LastModified = lastModified;
+            LastAuthenticated = lastAuthenticated;
+            User = user;
         }
 
         /// <summary>
@@ -115,15 +112,15 @@ namespace Amazon.Extensions.CognitoAuthentication
         {
             if (device == null)
             {
-                throw new ArgumentNullException("device", "Device cannot be null.");
+                throw new ArgumentNullException(nameof(device), "Device cannot be null.");
             }
 
-            this.DeviceKey = device.DeviceKey;
-            this.CreateDate = device.DeviceCreateDate;
-            this.LastModified = device.DeviceLastModifiedDate;
-            this.LastAuthenticated = device.DeviceLastAuthenticatedDate;
-            this.User = user;
-            this.DeviceAttributes = CreateDictionaryFromAttributeList(device.DeviceAttributes);
+            DeviceKey = device.DeviceKey;
+            CreateDate = device.DeviceCreateDate;
+            LastModified = device.DeviceLastModifiedDate;
+            LastAuthenticated = device.DeviceLastAuthenticatedDate;
+            User = user;
+            DeviceAttributes = CreateDictionaryFromAttributeList(device.DeviceAttributes);
         }
 
         /// <summary>
@@ -160,8 +157,7 @@ namespace Amazon.Extensions.CognitoAuthentication
         {
             GetDeviceRequest getDeviceRequest = CreateGetDeviceRequest();
 
-            GetDeviceResponse getDeviceResponse =
-                await User.Provider.GetDeviceAsync(getDeviceRequest).ConfigureAwait(false);
+            GetDeviceResponse getDeviceResponse = await InvokeServiceAsync<GetDeviceRequest, GetDeviceResponse>(User.Provider.GetDeviceAsync, getDeviceRequest).ConfigureAwait(false);
 
             UpdateThisDevice(getDeviceResponse.Device);
         }
@@ -173,7 +169,8 @@ namespace Amazon.Extensions.CognitoAuthentication
         public Task ForgetDeviceAsync()
         {
             ForgetDeviceRequest forgetDeviceRequest = CreateForgetDeviceRequest();
-            return User.Provider.ForgetDeviceAsync(forgetDeviceRequest);
+
+            return InvokeServiceAsync<ForgetDeviceRequest, ForgetDeviceResponse>(User.Provider.ForgetDeviceAsync, forgetDeviceRequest);
         }
 
         /// <summary>
@@ -184,7 +181,7 @@ namespace Amazon.Extensions.CognitoAuthentication
             UpdateDeviceStatusRequest updateRequest =
                 CreateUpdateDeviceStatusRequest(new DeviceRememberedStatusType(CognitoConstants.DeviceAttrRemembered));
 
-            return User.Provider.UpdateDeviceStatusAsync(updateRequest);
+            return InvokeServiceAsync<UpdateDeviceStatusRequest, UpdateDeviceStatusResponse>(User.Provider.UpdateDeviceStatusAsync, updateRequest);
         }
 
         /// <summary>
@@ -195,7 +192,7 @@ namespace Amazon.Extensions.CognitoAuthentication
             UpdateDeviceStatusRequest updateRequest =
                     CreateUpdateDeviceStatusRequest(new DeviceRememberedStatusType(CognitoConstants.DeviceAttrNotRemembered));
 
-            return User.Provider.UpdateDeviceStatusAsync(updateRequest);
+            return InvokeServiceAsync<UpdateDeviceStatusRequest, UpdateDeviceStatusResponse>(User.Provider.UpdateDeviceStatusAsync, updateRequest);
         }
 
         private GetDeviceRequest CreateGetDeviceRequest()
@@ -225,7 +222,7 @@ namespace Amazon.Extensions.CognitoAuthentication
                 throw new InternalErrorException("Service returned null object, this device was not updated.");
             }
 
-            if (!string.Equals(device.DeviceKey, this.DeviceKey))
+            if (!string.Equals(device.DeviceKey, DeviceKey))
             {
                 throw new InternalErrorException("Device keys don't match, this device was not updated.");
             }
