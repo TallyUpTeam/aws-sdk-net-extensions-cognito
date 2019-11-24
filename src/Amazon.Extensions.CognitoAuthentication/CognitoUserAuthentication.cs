@@ -383,7 +383,11 @@ namespace Amazon.Extensions.CognitoAuthentication
 
         private InitiateAuthRequest CreateRefreshTokenAuthRequest(AuthFlowType authFlowType)
         {
-            EnsureUserAuthenticated();
+// paul@tallyup.com: The following seemed like a bug. We're requesting a refresh
+// because our tokens are either about to, or already have, expired. If they've
+// already expired then the following will always fail and prevent the refresh!
+// See: https://github.com/aws/aws-sdk-net-extensions-cognito/issues/24
+//            EnsureUserAuthenticated();
 
             if (authFlowType != AuthFlowType.REFRESH_TOKEN && authFlowType != AuthFlowType.REFRESH_TOKEN_AUTH)
             {
